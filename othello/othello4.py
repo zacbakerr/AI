@@ -8,6 +8,20 @@ def display2D(board, canMove):
    for i in range(0,64,8):
       print(board[i:i+8])
 
+def getNeighbors(index):
+   neighbors = [index+1, index-1, index+8, index-8, index+7, index-7, index+9, index-9]
+   if index == (index + (8 - index % 8)) - 1: neighbors.remove(index+1); neighbors.remove(index-7); neighbors.remove(index+9)
+   if index == (index + (8 - index % 8) - 8): neighbors.remove(index-1); neighbors.remove(index-9); neighbors.remove(index+7)
+   if index < 8: 
+      neighbors.remove(index-8); 
+      if index-9 in neighbors: neighbors.remove(index-9)
+      if index-7 in neighbors: neighbors.remove(index-7)
+   if index > 55: 
+      neighbors.remove(index+8)
+      if index+9 in neighbors: neighbors.remove(index+9)
+      if index+7 in neighbors: neighbors.remove(index+7)
+   return neighbors
+
 def getMoves(board, toMove):
    toCheck = ""
    if toMove == "o": toCheck = "x"
@@ -72,7 +86,7 @@ def getMoves(board, toMove):
    if -1 in moves: moves.remove(-1)
    return moves
 
-def makeMove(moveIndex, toPlay):
+def makeMove(moveIndex, toPlay, board):
    toCheck = ""
    if toPlay == "o": toCheck = "x"
    else: toCheck = "o"
@@ -152,8 +166,44 @@ def makeMove(moveIndex, toPlay):
    return newBoard, toPlay
 
 def quickMove(brd, tkn):
-   posMoves = getMoves(brd, tkn)
-   return [*posMoves][0]
+   posMoves = [*getMoves(brd, tkn)]
+   if 0 in posMoves: return 0
+   if 7 in posMoves: return 7
+   if 56 in posMoves: return 56
+   if 63 in posMoves: return 63
+
+   ea = [2, 3, 4, 5, 58, 59, 60, 61]; ed = [16, 24, 32, 40, 23, 31, 39, 47]
+   for i in ea:
+      if i in posMoves:
+         made = makeMove(i, tkn, brd)
+         opponentMoves = getMoves(made[0], made[1])
+         if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): return i
+   for i in ed:
+      if i in posMoves:
+         made = makeMove(i, tkn, brd)
+         opponentMoves = getMoves(made[0], made[1])
+         if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): return i
+   
+   ntc1 = [0, 1, 8, 9]; ntc2 = [7, 6, 14, 15]; ntc3 = [56, 48, 49, 57]; ntc4 = [63, 62, 55, 54]
+   for c in [ntc1, ntc2, ntc3, ntc4]:
+      for i in c[1:]:
+         if i in posMoves:
+            if len(posMoves) > 1 and brd[c[0]] == ".": posMoves.remove(i)
+   
+   frontiers = set()
+   for i in posMoves:
+      for j in getNeighbors(i):
+         if brd[j] == ".": frontiers.add(i)
+   if len(frontiers) < len(posMoves):
+      for i in frontiers: posMoves.remove(i)
+
+   minM = 65
+   minI = 0
+   for i in posMoves:
+      made = makeMove(i, tkn, brd)
+      opponentMoves = getMoves(made[0], made[1])
+      if len(opponentMoves) < minM: minM = len(opponentMoves); minI = i
+   return minI
 
 def main():
    global board; global toPlay; global moves
@@ -161,9 +211,9 @@ def main():
    toPlay = "X"
    moves = []
    for arg in args:
-      if arg.isnumeric(): moves.append(arg)
+      if arg.isnumeric() and len(arg) < 3: moves.append(arg)
       elif len(arg) == 1: toPlay = arg.lower()
-      elif len(arg) == 64: board = arg.lower()
+      elif len(arg) == 64 and "." in arg: board = arg.lower()
       elif len(arg) == 2:
          temp = arg[0].upper()
          if temp == "-": moves.append(arg)
@@ -172,6 +222,10 @@ def main():
             index += cols[temp]
             index += (int(arg[1]) - 1) * 8
             moves.append(index)
+      else:
+         for i in range(0,len(arg),2):
+            if arg[i] == "_": moves.append(arg[i+1])
+            else: moves.append(arg[i:i+2])
       board = board.lower()
    if toPlay == "X":
       if ((64-board.count(".")) % 2) != 0: toPlay = "o"
@@ -219,7 +273,7 @@ def main():
       else:
          print("")
          print(f"{toPlay} plays to {move}")
-         made = makeMove(int(move), toPlay)
+         made = makeMove(int(move), toPlay, board)
          board = made[0]
          toPlay = made[1]
          canMove = getMoves(board, toPlay) 
