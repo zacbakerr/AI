@@ -22,7 +22,7 @@ def getNeighbors(index):
       if index+7 in neighbors: neighbors.remove(index+7)
    return neighbors
 
-def getMoves(board, toMove):
+def findMoves(board, toMove):
    toCheck = ""
    if toMove == "o": toCheck = "x"
    else: toCheck = "o"
@@ -86,7 +86,7 @@ def getMoves(board, toMove):
    if -1 in moves: moves.remove(-1)
    return moves
 
-def makeMove(moveIndex, toPlay, board):
+def makeMove(board, toPlay, moveIndex):
    toCheck = ""
    if toPlay == "o": toCheck = "x"
    else: toCheck = "o"
@@ -166,22 +166,51 @@ def makeMove(moveIndex, toPlay, board):
    return newBoard, toPlay
 
 def quickMove(brd, tkn):
-   posMoves = [*getMoves(brd, tkn)]
+   posMoves = [*findMoves(brd, tkn)]
+
+   # frontiers = set()
+   # for i in posMoves:
+   #    for j in getNeighbors(i):
+   #       if brd[j] == ".": frontiers.add(i)
+   # if len(frontiers) < len(posMoves):
+   #    for i in frontiers: posMoves.remove(i)
+
    if 0 in posMoves: return 0
    if 7 in posMoves: return 7
    if 56 in posMoves: return 56
    if 63 in posMoves: return 63
 
+   if brd.count('.') < 7:
+      empty = []
+      for i in range(64):
+         if brd[i] == ".": empty.append(i)
+      links = []
+      while len(empty) > 0:
+         temp = []
+         temp.append(empty[0])
+         empty.remove(empty[0])
+         for i in temp:
+            tNeighbors = getNeighbors(i)
+            for j in empty:
+               if j in tNeighbors and not (j in temp): temp.append(j); empty.remove(j)
+         links.append(temp)
+      for l in links:
+         if len(l) % 2 == 0:
+            for i in l: 
+               if i in posMoves: posMoves.remove(i)
+   
+   if len(posMoves) == 0: posMoves = [*findMoves(brd, tkn)]
+
    ea = [2, 3, 4, 5, 58, 59, 60, 61]; ed = [16, 24, 32, 40, 23, 31, 39, 47]
    for i in ea:
       if i in posMoves:
-         made = makeMove(i, tkn, brd)
-         opponentMoves = getMoves(made[0], made[1])
+         made = makeMove(brd, tkn, i)
+         opponentMoves = findMoves(made[0], made[1])
          if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): return i
    for i in ed:
       if i in posMoves:
-         made = makeMove(i, tkn, brd)
-         opponentMoves = getMoves(made[0], made[1])
+         made = makeMove(brd, tkn, i)
+         opponentMoves = findMoves(made[0], made[1])
          if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): return i
    
    ntc1 = [0, 1, 8, 9]; ntc2 = [7, 6, 14, 15]; ntc3 = [56, 48, 49, 57]; ntc4 = [63, 62, 55, 54]
@@ -190,19 +219,25 @@ def quickMove(brd, tkn):
          if i in posMoves:
             if len(posMoves) > 1 and brd[c[0]] == ".": posMoves.remove(i)
    
-   frontiers = set()
-   for i in posMoves:
-      for j in getNeighbors(i):
-         if brd[j] == ".": frontiers.add(i)
-   if len(frontiers) < len(posMoves):
-      for i in frontiers: posMoves.remove(i)
+   if brd.count(".") > 55:
+      minM = 65
+      minI = 0
+      for i in posMoves:
+         made = makeMove(brd, tkn, i)
+         opponentMoves = findMoves(made[0], made[1])
+         if len(opponentMoves) < minM: minM = len(opponentMoves); minI = i
+      return minI
 
    minM = 65
    minI = 0
    for i in posMoves:
-      made = makeMove(i, tkn, brd)
-      opponentMoves = getMoves(made[0], made[1])
-      if len(opponentMoves) < minM: minM = len(opponentMoves); minI = i
+      made = makeMove(brd, tkn, i)
+      tempF = 0
+      for j in range(64):
+         if made[0][j] == tkn:
+            for k in getNeighbors(j):
+               if made[0][k] == '.': tempF += 1; break
+      if tempF < minM: minM = tempF; minI = i
    return minI
 
 def main():
@@ -230,7 +265,7 @@ def main():
    if toPlay == "X":
       if ((64-board.count(".")) % 2) != 0: toPlay = "o"
       else: toPlay = "x"
-   canMove = getMoves(board, toPlay)
+   canMove = findMoves(board, toPlay)
    if moves:
       if int(moves[0]) in canMove:
          display2D(board, canMove)
@@ -243,7 +278,7 @@ def main():
       else:
          if toPlay == "x": toPlay = "o"
          else: toPlay = "x"
-         canMove = getMoves(board, toPlay)
+         canMove = findMoves(board, toPlay)
          display2D(board, canMove)
          print("")
          print(f"{board} {board.count('x')}/{board.count('o')}")
@@ -258,7 +293,7 @@ def main():
       if len(canMove) == 0:
          if toPlay == "x": toPlay = "o"
          else: toPlay = "x"
-      canMove = getMoves(board, toPlay)
+      canMove = findMoves(board, toPlay)
       if canMove:
          print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
       else:
@@ -273,10 +308,10 @@ def main():
       else:
          print("")
          print(f"{toPlay} plays to {move}")
-         made = makeMove(int(move), toPlay, board)
+         made = makeMove(board, toPlay, int(move))
          board = made[0]
          toPlay = made[1]
-         canMove = getMoves(board, toPlay) 
+         canMove = findMoves(board, toPlay) 
          display2D(board, canMove)
          print("")
          print(f"{board} {board.count('x')}/{board.count('o')}")
@@ -286,7 +321,7 @@ def main():
             if i == len(moves) - 1:
                if toPlay == "x": toPlay = "o"
                else: toPlay = "x"
-               canMove = getMoves(board, toPlay) 
+               canMove = findMoves(board, toPlay) 
                if canMove:
                   print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
                else:
@@ -294,15 +329,15 @@ def main():
             elif moves[i+1] != "-1":
                if toPlay == "x": toPlay = "o"
                else: toPlay = "x"
-               canMove = getMoves(board, toPlay) 
+               canMove = findMoves(board, toPlay) 
                print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
             else:
                temp = ""
                if toPlay == "x": temp = "o"
                else: temp = "x"
-               canMove = getMoves(board, temp) 
+               canMove = findMoves(board, temp) 
                print(f"Possible moves for {temp}: {', '.join(str(move) for move in canMove)}")
-   if len(getMoves(board, toPlay)) != 0:
+   if len(findMoves(board, toPlay)) != 0:
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")
 
