@@ -22,7 +22,11 @@
 
 ### Prefer the move that gives your opponent the fewest number of moves
 
-76.11%
+77.11%
+
+### Don't make any moves that flip tokens next to a corner (added a bad version of negamax as well but the help was negligible)
+
+79.74%
 
 0 1 2 3 4 5 6 7
 8 9 10 11 12 13 14 15
