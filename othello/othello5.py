@@ -165,21 +165,6 @@ def makeMove(board, toPlay, moveIndex):
    else: toPlay = "x"
    return newBoard, toPlay
 
-def negaMax(brd, tkn):
-   etkn = ""; 
-   if tkn == "x": etkn = "o"
-   else: etkn = "x"
-   if brd.count(".") == 0 or brd.count("o") == 0 or brd.count("x") == 0:
-      if brd.count(etkn) > brd.count(tkn): return {"W":set(), "D":set(), "L":""}
-      if brd.count(etkn) == brd.count(tkn): return {"W":set(), "D":"", "L":set()}
-   res = {"W":set(), "D":set(), "L":set()}
-   for mv in findMoves(brd, tkn):
-      nm = negaMax(makeMove(brd,tkn,mv)[0], makeMove(brd,tkn,mv)[1])
-      mvCategory = "L" if nm["W"] else ("D" if nm["D"] else "W")
-      extra = nm["L"] if nm["L"] else (nm["D"] if nm["D"] else "W")
-      res[mvCategory].add(mv)
-   return res
-
 def negaMax2(brd, tkn):
    newTk = tkn
    etkn = ""
@@ -349,7 +334,7 @@ def main():
    if len(findMoves(board, toPlay)) != 0:
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")
-      if board.count(".") < 7:
+      if board.count(".") < 11:
          nm = negaMax2(board, toPlay)
          print(f"Min score: {nm[0]}; move sequence: {nm[1:]}")
 
