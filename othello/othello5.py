@@ -165,29 +165,43 @@ def makeMove(board, toPlay, moveIndex):
    else: toPlay = "x"
    return newBoard, toPlay
 
-def negaMax2(brd, tkn):
-   newTk = tkn
-   etkn = ""
-   if tkn == "x": etkn = "o"
-   else: etkn = "x"
-   if brd.count(".") == 0 or brd.count("o") == 0 or brd.count("x") == 0: return [brd.count(newTk)-brd.count(etkn)]
-   mvs = findMoves(brd, tkn)
-   # if not mvs and findMoves(brd, etkn): return [-(nm := negaMax2(brd, etkn))[0]] + nm[1:] + [-1]
-   if not mvs and findMoves(brd, etkn): 
-      nm = negaMax2(brd, etkn)
-      return [-(nm)[0]] + nm[1:] + [-1]
-   bestSoFar = [-65]
-   for mv in findMoves(brd, newTk):
-      newBrd = makeMove(brd, newTk, mv)
-      nm = negaMax2(newBrd[0], newBrd[1])
-      if -nm[0] > bestSoFar[0]:
-         if newTk == tkn:
+def negamax(brd, tkn):
+   CACHE = dict()
+   def negamax2(brd, tkn):
+      if (brd, tkn) in CACHE:
+         return CACHE[(brd, tkn)]
+
+      newTk = tkn
+      etkn = ""
+      if tkn == "x": etkn = "o"
+      else: etkn = "x"
+
+      mvs = findMoves(brd, tkn)
+      emvs = findMoves(brd, etkn)
+
+      if brd.count(".") == 0 or brd.count("o") == 0 or brd.count("x") == 0 or (not mvs and not emvs): return [brd.count(tkn)-brd.count(etkn)]
+
+      if not mvs and emvs: 
+         nm = negamax2(brd, etkn)
+         CACHE[(brd, etkn)] = [-(nm)[0]] + nm[1:] + [-1]
+         return [-(nm)[0]] + nm[1:] + [-1]
+         
+      bestSoFar = [-65]
+      for mv in mvs:
+         newBrd = makeMove(brd, tkn, mv)
+         nm = negamax2(newBrd[0], newBrd[1])
+         if -nm[0] > bestSoFar[0]:
             bestSoFar = [-nm[0]] + nm[1:] + [mv]
-         else: bestSoFar = [-nm[0]] + nm[1:] + [mv] + [-1]
-   return bestSoFar
+            CACHE[(newBrd[0], newBrd[1])] = [-nm[0]] + nm[1:] + [mv]
+      return bestSoFar
+   return negamax2(brd, tkn)
 
 def quickMove(brd, tkn):
    posMoves = [*findMoves(brd, tkn)]
+
+   if brd.count(".") < 7:
+      nm = negamax(brd, tkn)
+      return nm[-1]
 
    # prefer corners
    if 0 in posMoves: return 0
@@ -335,9 +349,8 @@ def main():
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")
       if board.count(".") < 11:
-         nm = negaMax2(board, toPlay)
+         nm = negamax(board, toPlay)
          print(f"Min score: {nm[0]}; move sequence: {nm[1:]}")
-
 
 if __name__ == '__main__': main()
 
