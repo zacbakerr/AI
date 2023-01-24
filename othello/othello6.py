@@ -166,10 +166,10 @@ def makeMove(board, toPlay, moveIndex):
    return newBoard, toPlay
 
 def negamax(brd, tkn):
-   CACHE = dict()
-   def negamax2(brd, tkn):
-      if (brd, tkn) in CACHE:
-         return CACHE[(brd, tkn)]
+   NEGACACHE = dict()
+   def negamax2(brd, tkn, alpha, beta):
+      if (brd, tkn, alpha, beta) in NEGACACHE:
+         return NEGACACHE[(brd, tkn, alpha, beta)]
 
       etkn = ""
       if tkn == "x": etkn = "o"
@@ -178,27 +178,30 @@ def negamax(brd, tkn):
       mvs = findMoves(brd, tkn)
       emvs = findMoves(brd, etkn)
 
-      if brd.count(".") == 0 or brd.count("o") == 0 or brd.count("x") == 0 or (not mvs and not emvs): return [brd.count(tkn)-brd.count(etkn)]
-
-      if not mvs and emvs: 
-         nm = negamax2(brd, etkn)
-         CACHE[(brd, etkn)] = [-(nm)[0]] + nm[1:] + [-1]
-         return [-(nm)[0]] + nm[1:] + [-1]
+      if not mvs: 
+        if not emvs:
+           return [brd.count(tkn)-brd.count(etkn)]
+        nm = negamax2(brd, etkn, -beta, -alpha)
+        NEGACACHE[(brd, etkn, -beta, -alpha)] = [-(nm)[0]] + nm[1:] + [-1]
+        return [-(nm)[0]] + nm[1:] + [-1]
          
-      bestSoFar = [-65]
+      bestSoFar = [alpha-1]
       for mv in mvs:
          newBrd = makeMove(brd, tkn, mv)
-         nm = negamax2(newBrd[0], newBrd[1])
-         if -nm[0] > bestSoFar[0]:
-            bestSoFar = [-nm[0]] + nm[1:] + [mv]
-            CACHE[(newBrd[0], newBrd[1])] = [-nm[0]] + nm[1:] + [mv]
+         nm = negamax2(newBrd[0], newBrd[1], -beta, -alpha)
+         if -nm[0] < alpha: continue
+         if -nm[0] > beta: return [-nm[0]]
+         bestSoFar = [-nm[0]] + nm[1:] + [mv]    
+         NEGACACHE[(newBrd[0], newBrd[1], -beta, -alpha)] = [-nm[0]] + nm[1:] + [mv]
+
+         alpha = -nm[0]+1
       return bestSoFar
-   return negamax2(brd, tkn)
+   return negamax2(brd, tkn, -100, 100)
 
 def quickMove(brd, tkn):
    posMoves = [*findMoves(brd, tkn)]
 
-   if brd.count(".") < 7:
+   if brd.count(".") < 10:
       nm = negamax(brd, tkn)
       return nm[-1]
 
