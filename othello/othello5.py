@@ -198,7 +198,7 @@ def negamax(brd, tkn):
 def quickMove(brd, tkn):
    posMoves = [*findMoves(brd, tkn)]
 
-   if brd.count(".") < 7:
+   if brd.count(".") < 9:
       nm = negamax(brd, tkn)
       return nm[-1]
 

@@ -1,5 +1,9 @@
 import sys; args = sys.argv[1:]
+
 cols = {"A":0, "B":1, "C":2, "D":3, "E":4, "F":5, "G":6, "H":7}
+NEGACACHE = dict()
+MOVECACHE = dict()
+MAKECACHE = dict()
 
 def display2D(board, canMove):
    if canMove:
@@ -23,6 +27,7 @@ def getNeighbors(index):
    return neighbors
 
 def findMoves(board, toMove):
+   if (board, toMove) in MOVECACHE: return MOVECACHE[(board, toMove)]
    toCheck = ""
    if toMove == "o": toCheck = "x"
    else: toCheck = "o"
@@ -84,9 +89,11 @@ def findMoves(board, toMove):
          if canPlace: moves.add(dotI); canPlace = False
          dotI = -1
    if -1 in moves: moves.remove(-1)
+   MOVECACHE[(board, toMove)] = moves
    return moves
 
 def makeMove(board, toPlay, moveIndex):
+   if (board, toPlay, moveIndex) in MOVECACHE: return MOVECACHE[(board, toPlay, moveIndex)]
    toCheck = ""
    if toPlay == "o": toCheck = "x"
    else: toCheck = "o"
@@ -163,46 +170,38 @@ def makeMove(board, toPlay, moveIndex):
 
    if toPlay == "x": toPlay = "o"
    else: toPlay = "x"
+   MAKECACHE[(board, toPlay, moveIndex)] = (newBoard, toPlay)
    return newBoard, toPlay
 
-def negamax(brd, tkn):
-   NEGACACHE = dict()
-   def negamax2(brd, tkn, alpha, beta):
-      if (brd, tkn, alpha, beta) in NEGACACHE:
-         return NEGACACHE[(brd, tkn, alpha, beta)]
-
-      etkn = ""
-      if tkn == "x": etkn = "o"
-      else: etkn = "x"
-
-      mvs = findMoves(brd, tkn)
-      emvs = findMoves(brd, etkn)
-
-      if not mvs: 
-        if not emvs:
-           return [brd.count(tkn)-brd.count(etkn)]
-        nm = negamax2(brd, etkn, -beta, -alpha)
-        NEGACACHE[(brd, etkn, -beta, -alpha)] = [-(nm)[0]] + nm[1:] + [-1]
-        return [-(nm)[0]] + nm[1:] + [-1]
-         
-      bestSoFar = [alpha-1]
-      for mv in mvs:
-         newBrd = makeMove(brd, tkn, mv)
-         nm = negamax2(newBrd[0], newBrd[1], -beta, -alpha)
-         if -nm[0] < alpha: continue
-         if -nm[0] > beta: return [-nm[0]]
-         bestSoFar = [-nm[0]] + nm[1:] + [mv]    
-         NEGACACHE[(newBrd[0], newBrd[1], -beta, -alpha)] = [-nm[0]] + nm[1:] + [mv]
-
-         alpha = -nm[0]+1
-      return bestSoFar
-   return negamax2(brd, tkn, -100, 100)
+def alphabeta(brd, tkn, alpha, beta):
+   etkn = ""
+   if tkn == "x": etkn = "o"
+   else: etkn = "x"
+   if not findMoves(brd, tkn):
+      if not findMoves(brd, etkn):
+         return [brd.count(tkn)-brd.count(etkn)]
+      if (brd, tkn, alpha, beta) not in NEGACACHE:
+         NEGACACHE[(brd, tkn, alpha, beta)] = alphabeta(brd, etkn, -beta, -alpha)
+      ab = NEGACACHE[(brd, tkn, alpha, beta)]
+      if -ab[0] > alpha-1: return [-ab[0]] + ab[1:] + [-1]
+      else: return [alpha-1]
+   
+   best = [alpha-1]
+   for mv in findMoves(brd,tkn):
+      if (makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha) not in NEGACACHE:
+         NEGACACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = alphabeta(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)
+      ab = NEGACACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)]
+      if -ab[0] < alpha: continue
+      if -ab[0] > beta: return [-ab[0]]
+      best = [-ab[0]] + ab[1:] + [mv]
+      alpha = -ab[0]+1
+   return best
 
 def quickMove(brd, tkn):
    posMoves = [*findMoves(brd, tkn)]
 
-   if brd.count(".") < 10:
-      nm = negamax(brd, tkn)
+   if brd.count(".") < 8:
+      nm = alphabeta(brd, tkn, -100, 100)
       return nm[-1]
 
    # prefer corners
@@ -351,7 +350,7 @@ def main():
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")
       if board.count(".") < 11:
-         nm = negamax(board, toPlay)
+         nm = alphabeta(board, toPlay, -100, 100)
          print(f"Min score: {nm[0]}; move sequence: {nm[1:]}")
 
 if __name__ == '__main__': main()
