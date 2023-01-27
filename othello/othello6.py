@@ -5,10 +5,11 @@ NEGACACHE = dict()
 MOVECACHE = dict()
 MAKECACHE = dict()
 
-def display2D(board, canMove):
+def display2D(board, canMove, move=-1):
    if canMove:
       for m in canMove:
          board = board[0:m] + "*" + board[m+1:]
+   if move != -1: board = board[0:int(move)] + board[int(move)].upper() + board[int(move)+1:]
    for i in range(0,64,8):
       print(board[i:i+8])
 
@@ -198,9 +199,12 @@ def alphabeta(brd, tkn, alpha, beta):
    return best
 
 def quickMove(brd, tkn):
+   limit = holelim
+   if not brd: limit = tkn; return
+
    posMoves = [*findMoves(brd, tkn)]
 
-   if brd.count(".") < 8:
+   if brd.count(".") < limit:
       nm = alphabeta(brd, tkn, -100, 100)
       return nm[-1]
 
@@ -250,12 +254,14 @@ def quickMove(brd, tkn):
    return minI
 
 def main():
-   global board; global toPlay; global moves
+   global board; global toPlay; global moves; global holelim
+   holelim = 10
    board = '.'*27+'ox......xo'+'.'*27
    toPlay = "X"
    moves = []
    for arg in args:
       if arg.isnumeric() and len(arg) < 3: moves.append(arg)
+      elif arg[0:2] == "HL": holelim = int(arg[2:]);
       elif len(arg) == 1: toPlay = arg.lower()
       elif len(arg) == 64 and "." in arg: board = arg.lower()
       elif len(arg) == 2:
@@ -282,8 +288,8 @@ def main():
          print(f"{board} {board.count('x')}/{board.count('o')}")
          if canMove:
             print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-         else:
-            print("No moves possible")
+         # else:
+         #    print("No moves possible")
       else:
          if toPlay == "x": toPlay = "o"
          else: toPlay = "x"
@@ -293,9 +299,14 @@ def main():
          print(f"{board} {board.count('x')}/{board.count('o')}")
          if canMove:
             print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-         else:
-            print("No moves possible")
+         # else:
+         #    print("No moves possible")
    else:
+      canMove = findMoves(board, toPlay)
+      if len(canMove) == 0:
+         if toPlay == "x": toPlay = "o"
+         else: toPlay = "x"
+         canMove = findMoves(board, toPlay)
       display2D(board, canMove)
       print("")
       print(f"{board} {board.count('x')}/{board.count('o')}")
@@ -305,8 +316,8 @@ def main():
       canMove = findMoves(board, toPlay)
       if canMove:
          print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-      else:
-         print("No moves possible")
+      # else:
+      #    print("No moves possible")
    for i, move in enumerate(moves):
       if move == "-2": continue
       if move == "-1":
@@ -321,7 +332,7 @@ def main():
          board = made[0]
          toPlay = made[1]
          canMove = findMoves(board, toPlay) 
-         display2D(board, canMove)
+         display2D(board, canMove, move)
          print("")
          print(f"{board} {board.count('x')}/{board.count('o')}")
          if canMove:
@@ -333,8 +344,8 @@ def main():
                canMove = findMoves(board, toPlay) 
                if canMove:
                   print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-               else:
-                  print("No moves possible")
+               # else:
+               #    print("No moves possible")
             elif moves[i+1] != "-1":
                if toPlay == "x": toPlay = "o"
                else: toPlay = "x"
@@ -349,7 +360,7 @@ def main():
    if len(findMoves(board, toPlay)) != 0:
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")
-      if board.count(".") < 11:
+      if board.count(".") < holelim:
          nm = alphabeta(board, toPlay, -100, 100)
          print(f"Min score: {nm[0]}; move sequence: {nm[1:]}")
 
