@@ -1,9 +1,12 @@
 import sys; args = sys.argv[1:]
 
 cols = {"A":0, "B":1, "C":2, "D":3, "E":4, "F":5, "G":6, "H":7}
+global NEGACACHE, MOVECACHE, MAKECACHE
 NEGACACHE = dict()
 MOVECACHE = dict()
 MAKECACHE = dict()
+global HOLELIMIT
+HOLELIMIT = [8]
 
 def display2D(board, canMove, move=-1):
    if canMove:
@@ -91,6 +94,7 @@ def findMoves(board, toMove):
          dotI = -1
    if -1 in moves: moves.remove(-1)
    MOVECACHE[(board, toMove)] = moves
+   moves = sorted(moves, key=lambda x: x not in [0, 7, 56, 63])
    return moves
 
 def makeMove(board, toPlay, moveIndex):
@@ -175,36 +179,36 @@ def makeMove(board, toPlay, moveIndex):
    return newBoard, toPlay
 
 def alphabeta(brd, tkn, alpha, beta):
+   global NEGACACHE
+   if (brd, tkn, alpha, beta) in NEGACACHE: return NEGACACHE[(brd, tkn, alpha, beta)]
+
    etkn = ""
    if tkn == "x": etkn = "o"
    else: etkn = "x"
    if not findMoves(brd, tkn):
       if not findMoves(brd, etkn):
          return [brd.count(tkn)-brd.count(etkn)]
-      if (brd, tkn, alpha, beta) not in NEGACACHE:
-         NEGACACHE[(brd, tkn, alpha, beta)] = alphabeta(brd, etkn, -beta, -alpha)
-      ab = NEGACACHE[(brd, tkn, alpha, beta)]
-      if -ab[0] > alpha-1: return [-ab[0]] + ab[1:] + [-1]
-      else: return [alpha-1]
-   
+      ab = alphabeta(brd, etkn, -beta, -alpha)
+      NEGACACHE[(brd, tkn, -beta, -alpha)] = ab
+      return [-ab[0]] + ab[1:] + [-1]
+
    best = [alpha-1]
    for mv in findMoves(brd,tkn):
-      if (makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha) not in NEGACACHE:
-         NEGACACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = alphabeta(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)
-      ab = NEGACACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)]
-      if -ab[0] < alpha: continue
+      ab = alphabeta(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)
+      NEGACACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = ab
+      if -ab[0] <= alpha: continue
       if -ab[0] > beta: return [-ab[0]]
-      best = [-ab[0]] + ab[1:] + [mv]
+      if -ab[0] > best[0]: best = [-ab[0]] + ab[1:] + [mv]
       alpha = -ab[0]+1
+   NEGACACHE[(brd, tkn, alpha, beta)] = best
    return best
 
 def quickMove(brd, tkn):
-   limit = holelim
-   if not brd: limit = tkn; return
+   if not brd: HOLELIMIT[0] = int(tkn); return
 
    posMoves = [*findMoves(brd, tkn)]
 
-   if brd.count(".") < limit:
+   if brd.count(".") < HOLELIMIT[0]:
       nm = alphabeta(brd, tkn, -100, 100)
       return nm[-1]
 
@@ -254,14 +258,13 @@ def quickMove(brd, tkn):
    return minI
 
 def main():
-   global board; global toPlay; global moves; global holelim
-   holelim = 10
+   global board; global toPlay; global moves
    board = '.'*27+'ox......xo'+'.'*27
    toPlay = "X"
    moves = []
    for arg in args:
       if arg.isnumeric() and len(arg) < 3: moves.append(arg)
-      elif arg[0:2] == "HL": holelim = int(arg[2:]);
+      elif arg[0:2] == "HL": HOLELIMIT[0] = int(arg[2:]);
       elif len(arg) == 1: toPlay = arg.lower()
       elif len(arg) == 64 and "." in arg: board = arg.lower()
       elif len(arg) == 2:
@@ -360,7 +363,7 @@ def main():
    if len(findMoves(board, toPlay)) != 0:
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")
-      if board.count(".") < holelim:
+      if board.count(".") < HOLELIMIT[0]:
          nm = alphabeta(board, toPlay, -100, 100)
          print(f"Min score: {nm[0]}; move sequence: {nm[1:]}")
 
