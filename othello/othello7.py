@@ -181,6 +181,104 @@ def makeMove(board, toPlay, moveIndex):
    MAKECACHE[(board, toPlay, moveIndex)] = (newBoard, toPlay)
    return newBoard, toPlay
 
+def evaluateBoard(board, tkn):
+   etkn = "x"
+   if tkn == "x": etkn = "o"
+   score = 0
+
+   mstability = 0
+   
+
+   # check how many secure tokens are on the board. every token has 8 possible directions to go. the 8 directions are divided into 4 pairs. up and down, right and left, etc. every pair needs to have one direction that is filled with tokens up until a wall.
+   for i in range(0, 64):
+      tkns = [tkn, etkn]
+      for token in tkns:
+         otherTkn = "x"
+         if token == "x": otherTkn = "o"
+         if board[i] == token:
+            # iterate down
+            isSecure1 = True
+            isSecure2 = True
+            ultraSecure = True
+            for j in range(i, 64, 8):
+               if board[j] == otherTkn: isSecure1 = False; break
+               if board[j] == ".": isSecure1 = False; ultraSecure = False; break
+            for j in range(i, -1, -8):
+               if board[j] == otherTkn: isSecure2 = False; break
+               if board[j] == ".": isSecure2 = False; ultraSecure = False; break
+            if isSecure1 or isSecure2:
+               isSecure1 = True
+               isSecure2 = True
+               for j in range(i, i + (8 - i % 8)):
+                  if board[j] == otherTkn: isSecure1 = False; break
+                  if board[j] == ".": isSecure1 = False; ultraSecure = False; break
+               for j in range(i, i + (8 - i % 8) - 9, -1):
+                  if board[j] == ".": isSecure2 = False; ultraSecure = False; break
+                  if board[j] == otherTkn: isSecure2 = False; break
+               if isSecure1 or isSecure2:
+                  isSecure1 = True
+                  isSecure2 = True
+                  for j in range(i, 64, 9):
+                     if board[j] == ".": isSecure1 = False; ultraSecure = False; break
+                     if board[j] == otherTkn: isSecure1 = False; break
+                  for j in range(i, 64, -9):
+                     if board[j] == ".": isSecure2 = False; ultraSecure = False; break
+                     if board[j] == otherTkn: isSecure2 = False; break
+                  if isSecure1 or isSecure2:
+                     isSecure1 = True
+                     isSecure2 = True
+                     for j in range(i, 64, 7):
+                        if board[j] == ".": isSecure1 = False; ultraSecure = False; break
+                        if board[j] == otherTkn: isSecure1 = False; break
+                     for j in range(i, -1, -7):
+                        if board[j] == ".": isSecure2 = False; ultraSecure = False; break
+                        if board[j] == etkn: isSecure2 = False; break
+                     if isSecure1 or isSecure2:
+                        if token == tkn: score += 1
+                        else: score -= 1
+                     else: 
+                        if ultraSecure:
+                           if token == tkn: score += 1
+                           else: score -= 1
+
+   if board[0] == tkn: score += 5
+   if board[7] == tkn: score += 5
+   if board[56] == tkn: score += 5
+   if board[63] == tkn: score += 5
+   if board[0] == etkn: score -= 5
+   if board[7] == etkn: score -= 5
+   if board[56] == etkn: score -= 5
+   if board[63] == etkn: score -= 5
+
+   score += len(findMoves(board, tkn)); score -= len(findMoves(board, etkn))
+
+   # check if tokens are next to corners. if so, that is bad for that player
+   # ntc1 = [0, 1, 8, 9]; ntc2 = [7, 6, 14, 15]; ntc3 = [56, 48, 49, 57]; ntc4 = [63, 62, 55, 54]
+   # for c in [ntc1, ntc2, ntc3, ntc4]:
+   #    for j in c[1:]:
+   #       if board[j] == tkn and board[c[0]] == ".": score -= 1
+   #       if board[j] == etkn and board[c[0]] == ".": score += 1 
+
+   score += (board.count(tkn)-board.count(etkn))/(board.count(tkn)+board.count(etkn))
+
+   # ea = [2, 3, 4, 5, 58, 59, 60, 61]; ed = [16, 24, 32, 40, 23, 31, 39, 47]
+   # for i in ea:
+   #    if board[i] == tkn:
+   #       opponentMoves = findMoves(board, etkn)
+   #       if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): score += 1
+   #    if board[i] == etkn:
+   #       opponentMoves = findMoves(board, tkn)
+   #       if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): score -= 1
+   # for i in ed:
+   #    if board[i] == tkn:
+   #       opponentMoves = findMoves(board, etkn)
+   #       if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): score += 1
+   #    if board[i] == etkn:
+   #       opponentMoves = findMoves(board, tkn)
+   #       if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): score -= 1
+
+   return score
+
 def alphabeta(brd, tkn, alpha, beta):
    global NEGACACHE
    if (brd, tkn, alpha, beta) in NEGACACHE: return NEGACACHE[(brd, tkn, alpha, beta)]
@@ -207,31 +305,31 @@ def alphabeta(brd, tkn, alpha, beta):
    return best
 
 def midalphabeta(brd, tkn, alpha, beta, depth): 
-#    global MIDCACHE
-#    if (brd, tkn, alpha, beta) in MIDCACHE: return MIDCACHE[(brd, tkn, alpha, beta)]
+   global MIDCACHE
+   #if (brd, tkn, alpha, beta) in MIDCACHE: return MIDCACHE[(brd, tkn, alpha, beta)]
 
    etkn = ""
    if tkn == "x": etkn = "o"
    else: etkn = "x"
 
-   if depth >= 2: return [brd.count(tkn)-brd.count(etkn)]
+   if depth >= 4: return [evaluateBoard(brd, tkn)]
 
    if not findMoves(brd, tkn):
       if not findMoves(brd, etkn):
-        return [brd.count(tkn)-brd.count(etkn)]
+        return [evaluateBoard(brd, tkn)]
       ab = midalphabeta(brd, etkn, -beta, -alpha, depth+1)
-    #   MIDCACHE[(brd, tkn, -beta, -alpha)] = ab
+      MIDCACHE[(brd, tkn, -beta, -alpha)] = ab
       return [-ab[0]] + ab[1:] + [-1]
 
    best = [alpha-1]
    for mv in findMoves(brd,tkn):
       ab = midalphabeta(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha, depth+1)
-    #   MIDCACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = ab
+      MIDCACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = ab
       if -ab[0] <= alpha: continue
       if -ab[0] > beta: return [-ab[0]]
       if -ab[0] > best[0]: best = [-ab[0]] + ab[1:] + [mv]
       alpha = -ab[0]+1
-#    MIDCACHE[(brd, tkn, alpha, beta)] = best
+   MIDCACHE[(brd, tkn, alpha, beta)] = best
    return best
 
 def quickMove(brd, tkn):
@@ -243,53 +341,8 @@ def quickMove(brd, tkn):
       nm = alphabeta(brd, tkn, -100, 100)
       return nm[-1]
    else:
-      nm = midalphabeta(brd, tkn, -100, 100, 0)
+      nm = midalphabeta(brd, tkn, -1000, 1000, 0)
       return nm[-1]
-
-   # prefer corners
-   if 0 in posMoves: return 0
-   if 7 in posMoves: return 7
-   if 56 in posMoves: return 56
-   if 63 in posMoves: return 63
-
-   # don't make a move that would result in your token next to a corner
-   ntc1 = [0, 1, 8, 9]; ntc2 = [7, 6, 14, 15]; ntc3 = [56, 48, 49, 57]; ntc4 = [63, 62, 55, 54]
-   remove = set()
-   for i in posMoves:
-      made = makeMove(brd, tkn, i)
-      for c in [ntc1, ntc2, ntc3, ntc4]:
-         for j in c[1:]:
-            if made[0][j] == tkn and made[0][c[0]] == ".": remove.add(i)
-   for j in remove:
-      posMoves.remove(j)
-
-   # prefer edges if it can't be captured
-   ea = [2, 3, 4, 5, 58, 59, 60, 61]; ed = [16, 24, 32, 40, 23, 31, 39, 47]
-   for i in ea:
-      if i in posMoves:
-         made = makeMove(brd, tkn, i)
-         opponentMoves = findMoves(made[0], made[1])
-         if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): return i
-   for i in ed:
-      if i in posMoves:
-         made = makeMove(brd, tkn, i)
-         opponentMoves = findMoves(made[0], made[1])
-         if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): return i
-   
-   if len(posMoves) == 0: posMoves = [*findMoves(brd, tkn)]
-
-   # minimize frontier
-   minM = 65
-   minI = 0
-   for i in posMoves:
-      made = makeMove(brd, tkn, i)
-      tempF = 0
-      for j in range(64):
-         if made[0][j] == tkn:
-            for k in getNeighbors(j):
-               if made[0][k] == '.': tempF += 1; break
-      if tempF < minM: minM = tempF; minI = i
-   return minI
 
 def main():
    global board; global toPlay; global moves

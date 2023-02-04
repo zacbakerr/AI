@@ -88,7 +88,7 @@ except:
   print("Error on import")
   raise
 
-SECSPERGAME = 1                 # normal is .3
+SECSPERGAME = 7                 # normal is .3
 WORSTGAMECT = 3                  # Number of games to show
 tourneyStart = time.process_time()
 if trnyCt < 2:
