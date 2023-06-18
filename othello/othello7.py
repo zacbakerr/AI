@@ -1,15 +1,24 @@
 import sys; args = sys.argv[1:]
+import random
+import time
 
 cols = {"A":0, "B":1, "C":2, "D":3, "E":4, "F":5, "G":6, "H":7}
-global NEGACACHE, MOVECACHE, MAKECACHE, MIDCACHE
+global NEGACACHE, MOVECACHE, MAKECACHE, EVALCACHE, MIDCACHE
 
 NEGACACHE = dict()
 MOVECACHE = dict()
 MAKECACHE = dict()
+EVALCACHE = dict()
 MIDCACHE = dict()
 
 global HOLELIMIT
-HOLELIMIT = [8]
+HOLELIMIT = [14]
+
+class Strategy:
+    logging = True # turns on logging
+    def best_strategy(self, board, player, best_move, running):
+        if running.value:
+            best_move.value = quickMove(board, player)
 
 def display2D(board, canMove, move=-1):
    if canMove:
@@ -18,20 +27,6 @@ def display2D(board, canMove, move=-1):
    if move != -1: board = board[0:int(move)] + board[int(move)].upper() + board[int(move)+1:]
    for i in range(0,64,8):
       print(board[i:i+8])
-
-def getNeighbors(index):
-   neighbors = [index+1, index-1, index+8, index-8, index+7, index-7, index+9, index-9]
-   if index == (index + (8 - index % 8)) - 1: neighbors.remove(index+1); neighbors.remove(index-7); neighbors.remove(index+9)
-   if index == (index + (8 - index % 8) - 8): neighbors.remove(index-1); neighbors.remove(index-9); neighbors.remove(index+7)
-   if index < 8: 
-      neighbors.remove(index-8); 
-      if index-9 in neighbors: neighbors.remove(index-9)
-      if index-7 in neighbors: neighbors.remove(index-7)
-   if index > 55: 
-      neighbors.remove(index+8)
-      if index+9 in neighbors: neighbors.remove(index+9)
-      if index+7 in neighbors: neighbors.remove(index+7)
-   return neighbors
 
 def findMoves(board, toMove):
    if (board, toMove) in MOVECACHE: return MOVECACHE[(board, toMove)]
@@ -182,12 +177,10 @@ def makeMove(board, toPlay, moveIndex):
    return newBoard, toPlay
 
 def evaluateBoard(board, tkn):
+   if (board, tkn) in EVALCACHE: return EVALCACHE[(board, tkn)]
    etkn = "x"
    if tkn == "x": etkn = "o"
    score = 0
-
-   mstability = 0
-   
 
    # check how many secure tokens are on the board. every token has 8 possible directions to go. the 8 directions are divided into 4 pairs. up and down, right and left, etc. every pair needs to have one direction that is filled with tokens up until a wall.
    for i in range(0, 64):
@@ -250,33 +243,12 @@ def evaluateBoard(board, tkn):
    if board[56] == etkn: score -= 5
    if board[63] == etkn: score -= 5
 
-   score += len(findMoves(board, tkn)); score -= len(findMoves(board, etkn))
-
-   # check if tokens are next to corners. if so, that is bad for that player
-   # ntc1 = [0, 1, 8, 9]; ntc2 = [7, 6, 14, 15]; ntc3 = [56, 48, 49, 57]; ntc4 = [63, 62, 55, 54]
-   # for c in [ntc1, ntc2, ntc3, ntc4]:
-   #    for j in c[1:]:
-   #       if board[j] == tkn and board[c[0]] == ".": score -= 1
-   #       if board[j] == etkn and board[c[0]] == ".": score += 1 
+   score += (len(findMoves(board, tkn)))*2
+   score -= (len(findMoves(board, etkn)))*2
 
    score += (board.count(tkn)-board.count(etkn))/(board.count(tkn)+board.count(etkn))
 
-   # ea = [2, 3, 4, 5, 58, 59, 60, 61]; ed = [16, 24, 32, 40, 23, 31, 39, 47]
-   # for i in ea:
-   #    if board[i] == tkn:
-   #       opponentMoves = findMoves(board, etkn)
-   #       if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): score += 1
-   #    if board[i] == etkn:
-   #       opponentMoves = findMoves(board, tkn)
-   #       if not ((i-1) in opponentMoves) and not ((i+1) in opponentMoves): score -= 1
-   # for i in ed:
-   #    if board[i] == tkn:
-   #       opponentMoves = findMoves(board, etkn)
-   #       if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): score += 1
-   #    if board[i] == etkn:
-   #       opponentMoves = findMoves(board, tkn)
-   #       if not ((i-8) in opponentMoves) and not ((i+8) in opponentMoves): score -= 1
-
+   EVALCACHE[(board, tkn)] = score
    return score
 
 def alphabeta(brd, tkn, alpha, beta):
@@ -304,27 +276,30 @@ def alphabeta(brd, tkn, alpha, beta):
    NEGACACHE[(brd, tkn, alpha, beta)] = best
    return best
 
-def midalphabeta(brd, tkn, alpha, beta, depth): 
-   global MIDCACHE
-   #if (brd, tkn, alpha, beta) in MIDCACHE: return MIDCACHE[(brd, tkn, alpha, beta)]
-
+def midalphabeta(brd, tkn, alpha, beta, depth):
    etkn = ""
    if tkn == "x": etkn = "o"
    else: etkn = "x"
 
-   if depth >= 4: return [evaluateBoard(brd, tkn)]
+   if depth >= 6: return [evaluateBoard(brd, tkn)]
 
    if not findMoves(brd, tkn):
       if not findMoves(brd, etkn):
         return [evaluateBoard(brd, tkn)]
-      ab = midalphabeta(brd, etkn, -beta, -alpha, depth+1)
-      MIDCACHE[(brd, tkn, -beta, -alpha)] = ab
+      if (brd, etkn, -beta, -alpha) in MIDCACHE:
+         ab = MIDCACHE[(brd, etkn, -beta, -alpha)]
+      else:
+         ab = midalphabeta(brd, etkn, -beta, -alpha, depth+1)
+         MIDCACHE[(brd, etkn, -beta, -alpha)] = ab
       return [-ab[0]] + ab[1:] + [-1]
 
    best = [alpha-1]
    for mv in findMoves(brd,tkn):
-      ab = midalphabeta(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha, depth+1)
-      MIDCACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = ab
+      if (makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha) in MIDCACHE:
+         ab = MIDCACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)]
+      else:
+         ab = midalphabeta(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha, depth+1)
+         MIDCACHE[(makeMove(brd, tkn, mv)[0], etkn, -beta, -alpha)] = ab
       if -ab[0] <= alpha: continue
       if -ab[0] > beta: return [-ab[0]]
       if -ab[0] > best[0]: best = [-ab[0]] + ab[1:] + [mv]
@@ -334,8 +309,6 @@ def midalphabeta(brd, tkn, alpha, beta, depth):
 
 def quickMove(brd, tkn):
    if not brd: HOLELIMIT[0] = int(tkn); return
-
-   posMoves = [*findMoves(brd, tkn)]
 
    if brd.count(".") < HOLELIMIT[0]:
       nm = alphabeta(brd, tkn, -100, 100)
@@ -348,10 +321,12 @@ def main():
    global board; global toPlay; global moves
    board = '.'*27+'ox......xo'+'.'*27
    toPlay = "X"
+   mode = "t"
    moves = []
    for arg in args:
       if arg.isnumeric() and len(arg) < 3: moves.append(arg)
-      elif arg[0:2] == "HL": HOLELIMIT[0] = int(arg[2:]);
+      elif arg[0:2] == "HL": HOLELIMIT[0] = int(arg[2:])
+      elif arg == "v" or arg == "V": mode = "v"
       elif len(arg) == 1: toPlay = arg.lower()
       elif len(arg) == 64 and "." in arg: board = arg.lower()
       elif len(arg) == 2:
@@ -373,24 +348,24 @@ def main():
    canMove = findMoves(board, toPlay)
    if moves:
       if int(moves[0]) in canMove:
-         display2D(board, canMove)
-         print("")
-         print(f"{board} {board.count('x')}/{board.count('o')}")
+         if mode == "v":
+            display2D(board, canMove)
+            print("")
+            print(f"{board} {board.count('x')}/{board.count('o')}")
          if canMove:
-            print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-         # else:
-         #    print("No moves possible")
+            if mode == "v":
+               print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
       else:
          if toPlay == "x": toPlay = "o"
          else: toPlay = "x"
          canMove = findMoves(board, toPlay)
-         display2D(board, canMove)
-         print("")
-         print(f"{board} {board.count('x')}/{board.count('o')}")
+         if mode == "v":
+            display2D(board, canMove)
+            print("")
+            print(f"{board} {board.count('x')}/{board.count('o')}")
          if canMove:
-            print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-         # else:
-         #    print("No moves possible")
+            if mode == "v":
+               print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
    else:
       canMove = findMoves(board, toPlay)
       if len(canMove) == 0:
@@ -406,8 +381,6 @@ def main():
       canMove = findMoves(board, toPlay)
       if canMove:
          print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-      # else:
-      #    print("No moves possible")
    for i, move in enumerate(moves):
       if move == "-2": continue
       if move == "-1":
@@ -416,37 +389,42 @@ def main():
             else: toPlay = "x"
          continue
       else:
-         print("")
-         print(f"{toPlay} plays to {move}")
+         if mode == "v" or i == (len(moves) - 1):
+            if mode == "v":
+               print("")
+            print(f"{toPlay} plays to {move}")
          made = makeMove(board, toPlay, int(move))
          board = made[0]
          toPlay = made[1]
          canMove = findMoves(board, toPlay) 
-         display2D(board, canMove, move)
-         print("")
-         print(f"{board} {board.count('x')}/{board.count('o')}")
+         if mode == "v" or i == (len(moves) - 1):
+            display2D(board, canMove, move)
+            print("")
+            print(f"{board} {board.count('x')}/{board.count('o')}")
          if canMove:
-            print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
+            if mode == "v" or i == (len(moves) - 1):
+               print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
          else:
             if i == len(moves) - 1:
                if toPlay == "x": toPlay = "o"
                else: toPlay = "x"
                canMove = findMoves(board, toPlay) 
                if canMove:
-                  print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
-               # else:
-               #    print("No moves possible")
+                  if mode == "v" or i == (len(moves) - 1):
+                     print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
             elif moves[i+1] != "-1":
                if toPlay == "x": toPlay = "o"
                else: toPlay = "x"
                canMove = findMoves(board, toPlay) 
-               print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
+               if mode == "v" or i == (len(moves) - 1):
+                  print(f"Possible moves for {toPlay}: {', '.join(str(move) for move in canMove)}")
             else:
                temp = ""
                if toPlay == "x": temp = "o"
                else: temp = "x"
                canMove = findMoves(board, temp) 
-               print(f"Possible moves for {temp}: {', '.join(str(move) for move in canMove)}")
+               if mode == "v" or i == (len(moves) - 1):
+                  print(f"Possible moves for {temp}: {', '.join(str(move) for move in canMove)}")
    if len(findMoves(board, toPlay)) != 0:
       mypref = quickMove(board, toPlay)
       print(f"The preferred move is: {mypref}")

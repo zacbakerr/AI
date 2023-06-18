@@ -28,4 +28,13 @@
 
 79.74%
 
-- Chache for findMoves()
+### Othello 4
+- grab corners
+- safe edges (connected to a corner)
+- singleton edges
+- avoid next to corner if corner not ours
+- prefer not edges to edges
+- minimize enemey mobility
+
+### Othello 6
+- Hole limit 14
