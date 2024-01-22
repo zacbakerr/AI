@@ -1,4 +1,2 @@
 # Artifical Intelligence
-The labs I completed as part of the artifical intelligence course I took during my junior year of high school.
-
-Instructions for each lab appear in their folders.
+This repository contains the labs I completed as part of the artifical intelligence course I took during my junior year of high school. Notably, I created a feed-forward and backpropagation algorithm from scratch with no external libraries and ran it on mnist data. To get the train and test data for this lab, visit: https://www.kaggle.com/datasets/oddrationale/mnist-in-csv
